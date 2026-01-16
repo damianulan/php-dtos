@@ -1,0 +1,39 @@
+{
+  "name": "damianulan/php-dtos",
+  "type": "library",
+  "description": "Provides a template for creating robust and efficient data-transfer-objects (DTOs) in your PHP projects.",
+  "keywords": [
+    "extension",
+    "dto",
+    "data transfer object"
+  ],
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Damian Ułan",
+      "email": "damian.ulan@protonmail.com",
+      "homepage": "https://damianulan.me",
+      "role": "Developer"
+    }
+  ],
+  "require": {
+    "php": "^8.0",
+    "ext-json": "*"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^11.0|^12.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "DTOs\\": "src"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "DTOs\\Tests\\": "tests"
+    }
+  },
+  "scripts": {
+    "test": "vendor/bin/phpunit"
+  }
+}
