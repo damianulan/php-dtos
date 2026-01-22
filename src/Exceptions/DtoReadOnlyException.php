@@ -8,6 +8,6 @@ class DtoReadOnlyException extends Exception
 {
     public function __construct($property)
     {
-        parent::__construct("Dto object is read only! Unable to set property {$property}.");
+        parent::__construct("Dto object is read only. Unable to set property [{$property}].");
     }
 }

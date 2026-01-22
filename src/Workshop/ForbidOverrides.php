@@ -2,4 +2,4 @@
 
 namespace DTOs\Workshop;
 
-interface ForbidsOverrides {}
+interface ForbidOverrides {}

@@ -9,7 +9,6 @@ Provides a template for creating robust and efficient data-transfer-objects (DTO
 ## Installation
 
 You can install the package via composer in your laravel project:
-
 ```
 composer require damianulan/php-dtos
 ```

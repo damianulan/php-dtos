@@ -15,11 +15,6 @@ class DtoProperty implements Stringable
 
     public $value;
 
-    public function __toString(): string
-    {
-        return $this->value;
-    }
-
     public static function make($name, $value, $type = null): self
     {
         if (is_numeric($value)) {
@@ -43,5 +38,10 @@ class DtoProperty implements Stringable
         $this->value = $value;
 
         return $this;
+    }
+
+    public function __toString(): string
+    {
+        return $this->value;
     }
 }

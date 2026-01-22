@@ -5,12 +5,23 @@ namespace DTOs;
 use ArrayIterator;
 use Countable;
 use IteratorAggregate;
-use DTOs\Contracts\DtoOptions;
 use Traversable;
 
-abstract class Dto implements Countable, IteratorAggregate
+
+abstract class Dto implements Countable, IteratorAggregate, Traversable
 {
-    use DtoOptions;
+    /**
+     * The array of booted instances.
+     *
+     * @var array
+     */
+    protected static $booted = [];
+
+    protected static $forbidsOverrides = false;
+
+    protected static $preventsAccessingMissingAttributes = false;
+
+    protected static $isReadOnly = false;
 
     protected $attributes = [];
 
@@ -24,6 +35,7 @@ abstract class Dto implements Countable, IteratorAggregate
 
     public function __construct(array $attributes = [])
     {
+        $this->bootIfNotBooted();
         $this->fill($attributes);
     }
 
@@ -32,7 +44,7 @@ abstract class Dto implements Countable, IteratorAggregate
         $this->setAttribute($key, $value);
     }
 
-    public function __get(string $key)
+    public function &__get(string $key)
     {
         return $this->getAttribute($key);
     }
@@ -172,20 +184,6 @@ abstract class Dto implements Countable, IteratorAggregate
         return ! empty($this->attributes);
     }
 
-    protected function initialize(): void
-    {
-        if ( ! $this->initialized) {
-            $this->initializeDtoOptions();
-            $this->syncOriginal();
-            $this->initialized = true;
-        }
-    }
-
-    protected function isInitialized(): bool
-    {
-        return $this->initialized;
-    }
-
     protected function reassureBeingDirty(DtoProperty $property): bool
     {
         return $this->getOriginal($property->name) !== $property->value;
@@ -195,13 +193,13 @@ abstract class Dto implements Countable, IteratorAggregate
 
     protected function validateSetAttribute(DtoProperty $property): void
     {
-        if ($this->option('read_only')) {
-            throw new Exceptions\DtoReadOnly($property->name);
+        if (static::$isReadOnly && $this->isInitialized()) {
+            throw new Exceptions\DtoReadOnlyException($property->name);
         }
         if ( ! empty($this->fillable) && ! in_array($property->name, $this->fillable)) {
             throw new Exceptions\DtoPropertyNonFillable($property->name);
         }
-        if ($this->option('forbids_overrides')) {
+        if (static::$forbidsOverrides) {
             if ($this->hasAttribute($property->name)) {
                 throw new Exceptions\DtoPropertyOverride($property->name);
             }
@@ -210,10 +208,79 @@ abstract class Dto implements Countable, IteratorAggregate
 
     protected function validateGetAttribute($property): void
     {
-        if ( ! $this->option('ignores_unknown')) {
+        if (static::$preventsAccessingMissingAttributes) {
             if ( ! $this->hasAttribute($property)) {
                 throw new Exceptions\DtoInvalidAttribute($property);
             }
         }
     }
+
+    public function isInitialized(): bool
+    {
+        return $this->initialized;
+    }
+
+    protected function initialize(): void
+    {
+        if ( ! $this->isInitialized()) {
+            $this->syncOriginal();
+            $this->initialized = true;
+        }
+    }
+
+    protected function isBooted(): bool
+    {
+        return isset(static::$booted[static::class]);
+    }
+
+    protected function bootIfNotBooted()
+    {
+        if (! $this->isBooted()) {
+            static::$booted[static::class] = true;
+
+            static::booting();
+            static::boot();
+            static::booted();
+            $this->syncOriginal();
+        }
+    }
+
+    protected static function booting()
+    {
+        static::initializeOptions();
+    }
+
+    protected static function boot()
+    {
+        //
+    }
+
+    protected static function booted()
+    {
+        //
+    }
+
+    protected static function initializeOptions(): void
+    {
+        $ref = new \ReflectionClass(static::class);
+        static::forbidOverrides($ref->implementsInterface(Workshop\ForbidOverrides::class));
+        static::preventAccessingMissingAttributes($ref->implementsInterface(Workshop\PreventAccessingMissingAttributes::class));
+        static::shouldBeReadOnly($ref->implementsInterface(Workshop\ReadOnlyAttributes::class));
+    }
+
+    public static function forbidOverrides(bool $value): void
+    {
+        static::$forbidsOverrides = $value;
+    }
+
+    public static function preventAccessingMissingAttributes(bool $value): void
+    {
+        static::$preventsAccessingMissingAttributes = $value;
+    }
+
+    public static function shouldBeReadOnly(bool $value): void
+    {
+        static::$isReadOnly = $value;
+    }
+
 }
