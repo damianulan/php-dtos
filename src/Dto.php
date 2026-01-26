@@ -7,7 +7,12 @@ use Countable;
 use IteratorAggregate;
 use Traversable;
 
-
+/**
+ * Enables dynamically accessing the properties, later called attributes of a class.
+ *
+ * @author Damian Ułan <damian.ulan@protonmail.com>
+ * @copyright 2026 damianulan
+ */
 abstract class Dto implements Countable, IteratorAggregate, Traversable
 {
     /**
@@ -17,25 +22,73 @@ abstract class Dto implements Countable, IteratorAggregate, Traversable
      */
     protected static $booted = [];
 
+    /**
+     * This option prevents overriding attributes over those already assigned.
+     *
+     * @var bool
+     */
     protected static $forbidsOverrides = false;
 
+    /**
+     * This option throws exception on accessing uninitialized attributes.
+     *
+     * @var bool
+     */
     protected static $preventsAccessingMissingAttributes = false;
 
+    /**
+     * This option prevents reassignment of attributes after object construction.
+     *
+     * @var bool
+     */
     protected static $isReadOnly = false;
 
+    /**
+     * List of attributes assigned to object. You can access each of them as $dto->attribute
+     *
+     * @var array
+     */
     protected $attributes = [];
 
+    /**
+     * Contains names of attributes that are assignable within or outside a constructor.
+     * Leave empty to always allow all.
+     *
+     * @var array
+     */
     protected $fillable = [];
 
+    /**
+     * List of attributes assigned to the object on constructor.
+     *
+     * @var array
+     */
     private $original = [];
 
+    /**
+     * List of attributes that were reassigned after initialization.
+     *
+     * @var array
+     */
     private $dirty = [];
 
+    /**
+     * Determines whether object's contructor finished build.
+     *
+     * @var bool
+     */
     private $initialized = false;
 
     public function __construct(array $attributes = [])
     {
         $this->bootIfNotBooted();
+
+        // reassing when declared as default in static class
+        foreach ($this->attributes as $key => $value) {
+            $this->setAttribute($key, $value);
+        }
+
+        // fill with given attributes
         $this->fill($attributes);
     }
 
@@ -61,6 +114,12 @@ abstract class Dto implements Countable, IteratorAggregate, Traversable
         }
     }
 
+    /**
+     * Fill object with given attributes.
+     *
+     * @param array $attributes
+     * @return static
+     */
     public function fill(array $attributes = []): static
     {
         foreach ($attributes as $property => $value) {
@@ -72,6 +131,13 @@ abstract class Dto implements Countable, IteratorAggregate, Traversable
         return $this;
     }
 
+    /**
+     * Safely set attribute to the object.
+     *
+     * @param mixed $key
+     * @param mixed $value
+     * @return void
+     */
     public function setAttribute($key, $value): void
     {
         $property = DtoProperty::make($key, $value);
@@ -87,6 +153,12 @@ abstract class Dto implements Countable, IteratorAggregate, Traversable
         $this->attributes[$key] = $property->value;
     }
 
+    /**
+     * Safely get attribute from the object.
+     *
+     * @param mixed $key
+     * @return mixed
+     */
     public function getAttribute($key)
     {
         $this->validateGetAttribute($key);
@@ -98,6 +170,12 @@ abstract class Dto implements Countable, IteratorAggregate, Traversable
         return null;
     }
 
+    /**
+     * Check if attribute has been assigned to the object.
+     *
+     * @param string $key
+     * @return bool
+     */
     public function hasAttribute(string $key): bool
     {
         return isset($this->attributes[$key]);
@@ -108,6 +186,12 @@ abstract class Dto implements Countable, IteratorAggregate, Traversable
         return $this->attributes;
     }
 
+    /**
+     * Get attributes or an attribute on original state.
+     *
+     * @param string|null $key
+     * @return mixed
+     */
     public function getOriginal(?string $key = null)
     {
         if (null !== $key) {
@@ -117,6 +201,12 @@ abstract class Dto implements Countable, IteratorAggregate, Traversable
         return $this->original;
     }
 
+    /**
+     * Get attributes to which changes have been made after initialization.
+     *
+     * @param string|null $key
+     * @return mixed
+     */
     public function getDirty(?string $key = null)
     {
         if (null !== $key) {
@@ -138,6 +228,11 @@ abstract class Dto implements Countable, IteratorAggregate, Traversable
         return $this;
     }
 
+    /**
+     * Get whitelist of attributes that are available to be assigned
+     *
+     * @return array
+     */
     public function getFillable(): array
     {
         return $this->fillable;
@@ -160,6 +255,8 @@ abstract class Dto implements Countable, IteratorAggregate, Traversable
 
     /**
      * Gets all attributes.
+     *
+     * @return array
      */
     public function all(): array
     {
@@ -168,29 +265,53 @@ abstract class Dto implements Countable, IteratorAggregate, Traversable
 
     /**
      * Gets all attributes.
+     *
+     * @return array
      */
     public function toArray(): array
     {
-        return $this->attributes;
+        return $this->all();
     }
 
+    /**
+     * Check whether if none of the attributes is assigned.
+     *
+     * @return bool
+     */
     public function isEmpty(): bool
     {
-        return empty($this->attributes);
+        return empty(array_filter($this->attributes, fn($value) => $value !== null));
     }
 
+    /**
+     * Check whether any attribute is assigned.
+     *
+     * @return bool
+     */
     public function isFilled(): bool
     {
-        return ! empty($this->attributes);
+        return ! $this->isEmpty();
     }
 
+    // Tweaks and validations
+
+    /**
+     * Determines whether reassigned attribute object differs from an original one
+     *
+     * @param DtoProperty $property
+     * @return bool
+     */
     protected function reassureBeingDirty(DtoProperty $property): bool
     {
         return $this->getOriginal($property->name) !== $property->value;
     }
 
-    // Tweaks and validations
-
+    /**
+     * Checks whether attribute can be assigned.
+     *
+     * @param DtoProperty $property
+     * @return void
+     */
     protected function validateSetAttribute(DtoProperty $property): void
     {
         if (static::$isReadOnly && $this->isInitialized()) {
@@ -206,6 +327,12 @@ abstract class Dto implements Countable, IteratorAggregate, Traversable
         }
     }
 
+    /**
+     * Checks whether attribute can be retrieved.
+     *
+     * @param DtoProperty $property
+     * @return void
+     */
     protected function validateGetAttribute($property): void
     {
         if (static::$preventsAccessingMissingAttributes) {
@@ -215,11 +342,22 @@ abstract class Dto implements Countable, IteratorAggregate, Traversable
         }
     }
 
+    /**
+     * Checks whether object was already initialized
+     * and all constructor operations are finished.
+     *
+     * @return bool
+     */
     public function isInitialized(): bool
     {
         return $this->initialized;
     }
 
+    /**
+     * Initialize object after constructor operations are finished.
+     *
+     * @return void
+     */
     protected function initialize(): void
     {
         if ( ! $this->isInitialized()) {
@@ -228,12 +366,22 @@ abstract class Dto implements Countable, IteratorAggregate, Traversable
         }
     }
 
+    /**
+     * Check whether object instance was booted.
+     *
+     * @return bool
+     */
     protected function isBooted(): bool
     {
         return isset(static::$booted[static::class]);
     }
 
-    protected function bootIfNotBooted()
+    /**
+     * Boot object if needs to be booted.
+     *
+     * @return void
+     */
+    protected function bootIfNotBooted(): void
     {
         if (! $this->isBooted()) {
             static::$booted[static::class] = true;
@@ -245,21 +393,41 @@ abstract class Dto implements Countable, IteratorAggregate, Traversable
         }
     }
 
-    protected static function booting()
+    /**
+     * Perform any actions required before the object boots.
+     *
+     * @return void
+     */
+    protected static function booting(): void
+    {
+        //
+    }
+
+    /**
+     * Perform any actions required during the object boots.
+     *
+     * @return void
+     */
+    protected static function boot(): void
     {
         static::initializeOptions();
     }
 
-    protected static function boot()
+    /**
+     * Perform any actions required after the object boots.
+     *
+     * @return void
+     */
+    protected static function booted(): void
     {
         //
     }
 
-    protected static function booted()
-    {
-        //
-    }
-
+    /**
+     * Initialize tweaks and options assigned to the static object on its boot.
+     *
+     * @return void
+     */
     protected static function initializeOptions(): void
     {
         $ref = new \ReflectionClass(static::class);
@@ -268,16 +436,34 @@ abstract class Dto implements Countable, IteratorAggregate, Traversable
         static::shouldBeReadOnly($ref->implementsInterface(Workshop\ReadOnlyAttributes::class));
     }
 
+    /**
+     * Prevent overriding attributes over those already assigned.
+     *
+     * @param bool $value
+     * @return void
+     */
     public static function forbidOverrides(bool $value): void
     {
         static::$forbidsOverrides = $value;
     }
 
+    /**
+     * Throw an exception on accessing uninitialized attributes.
+     *
+     * @param bool $value
+     * @return void
+     */
     public static function preventAccessingMissingAttributes(bool $value): void
     {
         static::$preventsAccessingMissingAttributes = $value;
     }
 
+    /**
+     * Prevent reassignment of attributes after object construction.
+     *
+     * @param bool $value
+     * @return void
+     */
     public static function shouldBeReadOnly(bool $value): void
     {
         static::$isReadOnly = $value;

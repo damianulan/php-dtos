@@ -3,9 +3,14 @@
 namespace DTOs;
 
 use InvalidArgumentException;
-use Stringable;
 
-class DtoProperty implements Stringable
+/**
+ * This class serves as factory on assigning properties to DTO objects.
+ *
+ * @author Damian Ułan <damian.ulan@protonmail.com>
+ * @copyright 2026 damianulan
+ */
+class DtoProperty implements \Stringable
 {
     public $name;
 
