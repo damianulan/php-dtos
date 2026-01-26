@@ -44,6 +44,13 @@ abstract class Dto implements Countable, IteratorAggregate, Traversable
     protected static $isReadOnly = false;
 
     /**
+     * This option silences any exceptions and just goes through it.
+     *
+     * @var bool
+     */
+    protected static $silentMode = false;
+
+    /**
      * List of attributes assigned to object. You can access each of them as $dto->attribute
      *
      * @var array
@@ -140,17 +147,23 @@ abstract class Dto implements Countable, IteratorAggregate, Traversable
      */
     public function setAttribute($key, $value): void
     {
-        $property = DtoProperty::make($key, $value);
-        $this->validateSetAttribute($property);
+        try {
+            $property = DtoProperty::make($key, $value);
+            $this->validateSetAttribute($property);
 
-        if ($this->hasAttribute($key)) {
-            if ($this->reassureBeingDirty($property)) {
-                $this->dirty[$key] = $property->value;
+            if ($this->hasAttribute($key)) {
+                if ($this->reassureBeingDirty($property)) {
+                    $this->dirty[$key] = $property->value;
+                }
+            } else {
+                $this->original[$key] = $property->value;
             }
-        } else {
-            $this->original[$key] = $property->value;
+            $this->attributes[$key] = $property->value;
+        } catch (\Exception $e) {
+            if(!static::$silentMode){
+                throw $e;
+            }
         }
-        $this->attributes[$key] = $property->value;
     }
 
     /**
@@ -161,10 +174,16 @@ abstract class Dto implements Countable, IteratorAggregate, Traversable
      */
     public function getAttribute($key)
     {
-        $this->validateGetAttribute($key);
+        try {
+            $this->validateGetAttribute($key);
 
-        if ($this->hasAttribute($key)) {
-            return $this->attributes[$key];
+            if ($this->hasAttribute($key)) {
+                return $this->attributes[$key];
+            }
+        } catch (\Exception $e) {
+            if(!static::$silentMode){
+                throw $e;
+            }
         }
 
         return null;
@@ -469,4 +488,14 @@ abstract class Dto implements Countable, IteratorAggregate, Traversable
         static::$isReadOnly = $value;
     }
 
+    /**
+     * Prevents any exceptions from throwing.
+     *
+     * @param bool $value
+     * @return void
+     */
+    public static function shouldBeSilent(bool $value): void
+    {
+        static::$silentMode = $value;
+    }
 }
