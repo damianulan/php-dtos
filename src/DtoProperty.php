@@ -3,6 +3,7 @@
 namespace DTOs;
 
 use InvalidArgumentException;
+use Stringable;
 
 /**
  * This class serves as factory on assigning properties to DTO objects.
@@ -10,7 +11,7 @@ use InvalidArgumentException;
  * @author Damian Ułan <damian.ulan@protonmail.com>
  * @copyright 2026 damianulan
  */
-class DtoProperty implements \Stringable
+class DtoProperty implements Stringable
 {
     public $name;
 
@@ -19,6 +20,11 @@ class DtoProperty implements \Stringable
     public $raw_value;
 
     public $value;
+
+    public function __toString(): string
+    {
+        return $this->value;
+    }
 
     public static function make($name, $value, $type = null): self
     {
@@ -43,10 +49,5 @@ class DtoProperty implements \Stringable
         $this->value = $value;
 
         return $this;
-    }
-
-    public function __toString(): string
-    {
-        return $this->value;
     }
 }
