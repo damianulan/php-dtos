@@ -3,7 +3,9 @@
 namespace DTOs;
 
 use ArrayIterator;
+use BadMethodCallException;
 use Countable;
+use Illuminate\Support\Str;
 use IteratorAggregate;
 use ReflectionClass;
 use Traversable;
@@ -91,13 +93,18 @@ abstract class Dto implements Countable, IteratorAggregate, Traversable
     {
         $this->bootIfNotBooted();
 
-        // reassing when declared as default in static class
+        // reassign when declared as default in static class
         foreach ($this->attributes as $key => $value) {
             $this->setAttribute($key, $value);
         }
 
         // fill with given attributes
         $this->fill($attributes);
+    }
+
+    public function __get(string $key)
+    {
+        return $this->getAttribute($key);
     }
 
     public function __set(string $key, $value): void
@@ -115,6 +122,19 @@ abstract class Dto implements Countable, IteratorAggregate, Traversable
         if ($this->hasAttribute($key)) {
             unset($this->attributes[$key]);
         }
+    }
+
+    public function __call($name, $arguments)
+    {
+        if(Str::startsWith($name, 'get')){
+            $attribute = Str::after($name, 'get');
+            return $this->getAttribute($attribute);
+        } elseif (Str::startsWith($name, 'set')){
+            $attribute = Str::after($name, 'set');
+            return $this->setAttribute($attribute, $arguments[0]);
+        }
+
+        throw new BadMethodCallException('Method does not exist');
     }
 
     /**
@@ -139,11 +159,6 @@ abstract class Dto implements Countable, IteratorAggregate, Traversable
     public static function shouldBeReadOnly(bool $value): void
     {
         static::$isReadOnly = $value;
-    }
-
-    public function &__get(string $key)
-    {
-        return $this->getAttribute($key);
     }
 
     /**
@@ -196,6 +211,7 @@ abstract class Dto implements Countable, IteratorAggregate, Traversable
     public function getAttribute($key)
     {
         try {
+            $key = Str::snake($key);
             $this->validateGetAttribute($key);
 
             if ($this->hasAttribute($key)) {
@@ -215,6 +231,7 @@ abstract class Dto implements Countable, IteratorAggregate, Traversable
      */
     public function hasAttribute(string $key): bool
     {
+        $key = Str::snake($key);
         return isset($this->attributes[$key]);
     }
 

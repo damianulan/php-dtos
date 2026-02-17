@@ -2,6 +2,7 @@
 
 namespace DTOs;
 
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 use Stringable;
 
@@ -36,7 +37,7 @@ class DtoProperty implements Stringable
         }
 
         $instance = new self();
-        $instance->name = $name;
+        $instance->name = Str::snake($name);
         $instance->type = $type;
         $instance->raw_value = $value;
         $instance->setValue($value);
